@@ -57,20 +57,13 @@ import (
 )
 
 func main() {
-  signer, err := cmdr.LoadPEM("file.pem")
-  if err != nil {
-    fmt.Errorf("%s", err)
-  }
-  
-  config := &ssh.ClientConfig{
-      User: "<username>",
-      Auth: []ssh.AuthMethod{
-              ssh.PublicKeys(signer),
-      },
-  }
-  
   output := make(chan string)
   errout := make(chan string)
+  
+  config, err := NewClientConfig(*username, *password, *pemfile)
+  if err != nil {
+    t.Errorf("%s\n", err)
+  }
   
   cmd, err := NewSSHCommand(config, "<ip address>:<port>", nil, output, errout)
   if err != nil {
