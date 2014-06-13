@@ -3,6 +3,15 @@ cmdr
 
 Go command execution runner for local or remote ssh commands
 
+###Running Tests:
+```bash
+#username and password authentication (Runs an "ls -la /" command)
+go test -v -username <username> -password <password> -sshserver <ip addr:port>
+
+#username and pemfile authentication (Runs an "ls -la" command)
+go test -v -username <username> -pemfile <pemfile> -sshserver <ip addr:port>
+```
+
 ###Local Command Example:
 ```go
 package main
