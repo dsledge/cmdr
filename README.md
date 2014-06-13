@@ -60,12 +60,12 @@ func main() {
   output := make(chan string)
   errout := make(chan string)
   
-  config, err := NewClientConfig(*username, *password, *pemfile)
+  config, err := cmdr.NewClientConfig(*username, *password, *pemfile)
   if err != nil {
     t.Errorf("%s\n", err)
   }
   
-  cmd, err := NewSSHCommand(config, "<ip address>:<port>", nil, output, errout)
+  cmd, err := cmdr.NewSSHCommand(config, "<ip address>:<port>", nil, output, errout)
   if err != nil {
     t.Errorf("%s\n", err)
   }
