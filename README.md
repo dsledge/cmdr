@@ -38,6 +38,7 @@ func main() {
       case err := <-errout:
         fmt.Printf("%s", err)
       }
+    }
   }()
   
   err = cmd.Execute("ls", "-la", "/")
@@ -78,9 +79,10 @@ func main() {
       case err := <-errout:
         fmt.Printf("%s", err)
       }
+    }
   }()
   
-  err = cmd.Execute("ls", "-la")
+  err = cmd.Execute("ls -la")
   if err != nil {
     fmt.Printf("%s", err)
   }
