@@ -67,6 +67,7 @@ func main() {
   }
   
   cmd, err := cmdr.NewSSHCommand(config, "<ip address>:<port>", nil, output, errout)
+  defer cmd.Close()
   if err != nil {
     t.Errorf("%s\n", err)
   }
