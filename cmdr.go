@@ -222,7 +222,7 @@ func execute(obj interface{}, cmd string) error {
 
 func processInput(in chan string, notifier chan error, w io.WriteCloser) {
 	defer close(notifier)
-	defer close(in)
+	// defer close(in)
 
 	for {
 		if in, ok := <-in; ok {
