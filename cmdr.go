@@ -132,7 +132,7 @@ func execute(obj interface{}, cmd string) error {
 
 	// Checking if a channel has been passed in to handle Stdout
 	if !vstdin.IsNil() {
-		innotifier := make(chan error)
+		innotifier = make(chan error)
 		if method := vsession.MethodByName("StdinPipe"); method.IsValid() {
 			values := method.Call(nil)
 			if values[1].IsNil() {
@@ -222,7 +222,6 @@ func execute(obj interface{}, cmd string) error {
 
 func processInput(in chan string, notifier chan error, w io.WriteCloser) {
 	defer close(notifier)
-	// defer close(in)
 
 	for {
 		if in, ok := <-in; ok {
