@@ -217,6 +217,17 @@ func execute(obj interface{}, cmd string) error {
 		return errors.New(errstr)
 	}
 
+	if vwait := vsession.MethodByName("Wait"); vwait.IsValid() {
+		switch v := obj.(type) {
+		case *Command:
+			vwait.Call(nil)
+		case *SSHCommand:
+			vwait.Call([]reflect.Value{reflect.ValueOf(cmd)})
+		default:
+			return fmt.Errorf("Not a valid type, expected *Command or *SSHCommand but recevied %s", v)
+		}
+	}
+
 	return nil
 }
 
