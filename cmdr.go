@@ -45,6 +45,10 @@ type Command struct {
 	Stdin	chan string
 	Stdout	chan string
 	Stderr	chan string
+	ErrDelimiter byte
+	OutDelimiter byte
+	ErrMaxBytes int
+	OutMaxBytes int
 }
 
 type SSHCommand struct {
@@ -94,11 +98,11 @@ func (c *Command) ProcessStdIn(notifier chan error, w io.WriteCloser) {
 }
 
 func (c *Command) ProcessStdOut(notifier chan error, r io.Reader)  {
-	processOutput(c.Stdout, notifier, r)
+	processOutput(c.Stdout, notifier, r, c.OutMaxBytes, c.OutDelimiter)
 }
 
 func (c *Command) ProcessStdErr(notifier chan error, r io.Reader)  {
-	processOutput(c.Stderr, notifier, r)
+	processOutput(c.Stderr, notifier, r, c.ErrMaxBytes, c.ErrDelimiter)
 }
 
 func (c *SSHCommand) ProcessStdIn(notifier chan error, w io.WriteCloser) {
@@ -106,11 +110,11 @@ func (c *SSHCommand) ProcessStdIn(notifier chan error, w io.WriteCloser) {
 }
 
 func (s *SSHCommand) ProcessStdOut(notifier chan error, r io.Reader)  {
-	processOutput(s.Stdout, notifier, r)
+	processOutput(s.Stdout, notifier, r, s.OutMaxBytes, s.OutDelimiter)
 }
 
 func (s *SSHCommand) ProcessStdErr(notifier chan error, r io.Reader)  {
-	processOutput(s.Stderr, notifier, r)
+	processOutput(s.Stderr, notifier, r, s.ErrMaxBytes, s.ErrDelimiter)
 }
 
 func (s *SSHCommand) Close() {
@@ -246,7 +250,7 @@ func processInput(in chan string, notifier chan error, w io.WriteCloser) {
 	}
 }
 
-func processOutput(out chan string, notifier chan error, r io.Reader) {
+func processOutput(out chan string, notifier chan error, r io.Reader, bytes int, delim byte) {
 	defer close(notifier)
 	defer close(out)
 
@@ -254,7 +258,17 @@ func processOutput(out chan string, notifier chan error, r io.Reader) {
 	var str string
 	var err error
 	for {
-		str, err = bufr.ReadString('\n')
+		if bytes > 0 {
+			var l int
+			chars := make([]byte, bytes, bytes)
+			l, err = io.ReadAtLeast(r,chars,bytes)
+			str = string(chars[:l])
+		} else {
+			if delim == '\x00' {
+				delim = '\n'
+			}
+			str, err = bufr.ReadString(delim)
+		}
 		if len(str) > 1 {
 			out <-str
 		}
@@ -262,7 +276,7 @@ func processOutput(out chan string, notifier chan error, r io.Reader) {
 			break
 		}
 	}
-	if err != io.EOF {
+	if err != io.EOF || err != io.ErrUnexpectedEOF {
 		notifier <-err
 	}
 }
