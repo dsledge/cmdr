@@ -276,7 +276,7 @@ func processOutput(out chan string, notifier chan error, r io.Reader, bytes int,
 			break
 		}
 	}
-	if err != io.EOF || err != io.ErrUnexpectedEOF {
+	if !(err == io.EOF || err == io.ErrUnexpectedEOF) {
 		notifier <-err
 	}
 }
