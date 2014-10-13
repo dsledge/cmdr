@@ -226,7 +226,7 @@ func execute(obj interface{}, cmd string) error {
 		case *Command:
 			vwait.Call(nil)
 		case *SSHCommand:
-			vwait.Call([]reflect.Value{reflect.ValueOf(cmd)})
+			vwait.Call(nil)
 		default:
 			return fmt.Errorf("Not a valid type, expected *Command or *SSHCommand but recevied %s", v)
 		}
