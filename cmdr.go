@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"errors"
 	"strings"
+	"time"
 )
 
 func NewClientConfig(username, password, pemfile string) (*ssh.ClientConfig, error) {
@@ -49,6 +50,7 @@ type Command struct {
 	OutDelimiter byte
 	ErrMaxBytes int
 	OutMaxBytes int
+	timeout		time.Duration
 }
 
 type SSHCommand struct {
@@ -57,24 +59,77 @@ type SSHCommand struct {
 	Server string
 	Session *ssh.Session
 	client *ssh.Client
+	timeout		time.Duration
 }
 
 func NewCommand(inchan, outchan, errchan chan string) (*Command, error) {
-	return &Command{Stdin: inchan, Stdout: outchan, Stderr: errchan}, nil
+	return &Command{Stdin: inchan, Stdout: outchan, Stderr: errchan, timeout: 0}, nil
 }
 
 func NewSSHCommand(cfg *ssh.ClientConfig, server string, inchan, outchan, errchan chan string) (*SSHCommand, error) {
-	return &SSHCommand{Config: cfg, Server: server, Command: Command{Stdin: inchan, Stdout: outchan, Stderr: errchan}}, nil
+	return &SSHCommand{Config: cfg, Server: server, Command: Command{Stdin: inchan, Stdout: outchan, Stderr: errchan}, timeout: 0}, nil
+}
+
+func timeout(cmd *exec.Cmd, timeout time.Duration, done chan bool, err chan error) {
+	if timeout > 0 {
+		response := ""
+		for {
+			select {
+			case <-time.After(timeout):
+				cmd.Process.Kill()
+				response = "Local command execution timeout reached, terminating command"
+			case <-done:
+				if len(response) > 1 {
+					err <-fmt.Errorf(response)
+				} else {
+					err <-nil
+				}
+				break
+			}
+		}
+	} else {
+		err <-nil
+	}
+}
+
+func timeout_ssh(client *ssh.Client, timeout time.Duration, done chan bool, err chan error) {
+	if timeout > 0 {
+		response := ""
+		for {
+			select {
+			case <-time.After(timeout):
+				client.Conn.Close()
+				response = "Remote SSH command execution timeout reached, terminating command"
+			case <-done:
+				if len(response) > 1 {
+					err <-fmt.Errorf(response)
+				} else {
+					err <-nil
+				}
+				break
+			}
+		}
+	} else {
+		err <-nil
+	}
 }
 
 func (c *Command) Execute(cmd string, args ...string) error {
 	c.Session = exec.Command(cmd, args...)
+	done := make(chan bool, 1)
+	errchan := make(chan error)
+	defer close(done)
+	go timeout(c.Session, c.timeout, done, errchan)
 
 	if err := execute(c, ""); err != nil {
 		fmt.Printf("Execute Error: %s\n", err)
+		done <-true
 		return err
 	}
-	return nil
+
+	done <-true
+	err := <-errchan
+	return err
 }
 
 func (s *SSHCommand) Execute(cmd string) (err error) {
@@ -87,10 +142,27 @@ func (s *SSHCommand) Execute(cmd string) (err error) {
 		return err
 	}
 
+	done := make(chan bool, 1)
+	errchan := make(chan error)
+	defer close(done)
+	go timeout_ssh(s.client, s.timeout, done, errchan)
+
 	if err = execute(s, cmd); err != nil {
+		done <-true
 		return err
 	}
-	return nil
+
+	done <-true
+	err = <-errchan
+	return err
+}
+
+func (c *Command) SetTimeout(timeout time.Duration) {
+	c.timeout = timeout
+}
+
+func (s *SSHCommand) SetTimeout(timeout time.Duration) {
+	s.timeout = timeout
 }
 
 func (c *Command) ProcessStdIn(notifier chan error, w io.WriteCloser) {
