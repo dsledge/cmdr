@@ -82,9 +82,9 @@ func timeout(cmd *exec.Cmd, timeout time.Duration, done chan bool, err chan erro
 				if len(response) > 1 {
 					err <-fmt.Errorf(response)
 				} else {
-					err <-nil
+					close(err)
 				}
-				break
+				return
 			}
 		}
 	} else {
@@ -104,9 +104,9 @@ func timeout_ssh(client *ssh.Client, timeout time.Duration, done chan bool, err 
 				if len(response) > 1 {
 					err <-fmt.Errorf(response)
 				} else {
-					err <-nil
+					close(err)
 				}
-				break
+				return
 			}
 		}
 	} else {
@@ -117,13 +117,14 @@ func timeout_ssh(client *ssh.Client, timeout time.Duration, done chan bool, err 
 func (c *Command) Execute(cmd string, args ...string) error {
 	c.Session = exec.Command(cmd, args...)
 	done := make(chan bool, 1)
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	defer close(done)
 	go timeout(c.Session, c.timeout, done, errchan)
 
 	if err := execute(c, ""); err != nil {
 		fmt.Printf("Execute Error: %s\n", err)
 		done <-true
+		<-errchan
 		return err
 	}
 
@@ -143,12 +144,13 @@ func (s *SSHCommand) Execute(cmd string) (err error) {
 	}
 
 	done := make(chan bool, 1)
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	defer close(done)
 	go timeout_ssh(s.client, s.timeout, done, errchan)
 
 	if err = execute(s, cmd); err != nil {
 		done <-true
+		<-errchan
 		return err
 	}
 
